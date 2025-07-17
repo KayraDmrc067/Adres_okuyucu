@@ -2,48 +2,97 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Kamera Testi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kamera ile Adres Okuma</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    video { width: 100%; max-width: 400px; border: 2px solid #555; }
-    #output { margin-top: 10px; color: red; font-weight: bold; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    video {
+      width: 100%;
+      max-width: 400px;
+      height: auto;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+    button { margin-top: 10px; padding: 10px; font-size: 16px; }
+    #output { margin-top: 20px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
 
-<h2>📷 Kamera Testi</h2>
-<video id="video" autoplay playsinline></video>
-<div id="output">Kamera başlatılıyor...</div>
+<h2>Fişten Adres Okuma ve Haritada Açma</h2>
 
+<video id="video" autoplay playsinline></video><br />
+<button id="captureBtn">Fotoğraf Çek ve Adresi Oku</button>
+
+<div id="output"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
 <script>
   const video = document.getElementById('video');
+  const captureBtn = document.getElementById('captureBtn');
   const output = document.getElementById('output');
 
+  // Kamerayı aç
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" } // Arka kamera için
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       video.srcObject = stream;
-      output.textContent = "✅ Kamera başarıyla başlatıldı.";
-    } catch (err) {
-      console.error(err);
-      if (err.name === 'NotAllowedError') {
-        output.textContent = "❌ Kamera izni verilmedi. Tarayıcınızdan bu siteye izin verin.";
-      } else if (err.name === 'NotFoundError') {
-        output.textContent = "❌ Cihazda uygun bir kamera bulunamadı.";
-      } else if (err.name === 'NotReadableError') {
-        output.textContent = "❌ Kamera başka bir uygulama tarafından kullanılıyor.";
-      } else if (err.name === 'OverconstrainedError') {
-        output.textContent = "❌ Belirtilen kamera özellikleri desteklenmiyor.";
-      } else {
-        output.textContent = "❌ Kameraya erişilemiyor: " + err.message;
-      }
+    } catch (e) {
+      output.textContent = 'Kameraya erişim reddedildi veya desteklenmiyor.';
+      console.error(e);
     }
   }
 
   startCamera();
+
+  captureBtn.onclick = async () => {
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    if (width === 0 || height === 0) {
+      output.textContent = 'Video akışı hazır değil, lütfen kameranın açıldığından emin olun.';
+      return;
+    }
+
+    // Görüntüyü al
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, width, height);
+
+    output.textContent = 'Metin okunuyor, lütfen bekleyin...';
+
+    // OCR ile metni tanı
+    const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+      logger: m => console.log(m)
+    });
+
+    output.textContent = 'Okunan metin:\n' + text;
+
+    // Adres benzeri satırı bul
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+    let addressLine = lines.find(line =>
+      line.toLowerCase().includes('adres') ||
+      line.toLowerCase().includes('mah') ||
+      line.toLowerCase().includes('cad') ||
+      line.toLowerCase().includes('sok') ||
+      line.toLowerCase().includes('no') ||
+      line.toLowerCase().includes('apart') ||
+      line.toLowerCase().includes('kat')
+    );
+
+    // Adres varsa Google Maps'e yönlendir
+    if (addressLine && addressLine.length > 10) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressLine)}`;
+      output.textContent += '\n\nBulunan adres:\n' + addressLine;
+      if (confirm('Google Maps’te bu adresi açmak ister misin?')) {
+        window.open(url, '_blank');
+      }
+    } else {
+      output.textContent += '\n\nAdres bulunamadı veya okunamadı.';
+    }
+  };
 </script>
 
 </body>
