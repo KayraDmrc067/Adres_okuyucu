@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kamera Testi</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    video { width: 100%; max-width: 400px; border: 2px solid #555; }
+    #output { margin-top: 10px; color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h2>📷 Kamera Testi</h2>
+<video id="video" autoplay playsinline></video>
+<div id="output">Kamera başlatılıyor...</div>
+
+<script>
+  const video = document.getElementById('video');
+  const output = document.getElementById('output');
+
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" } // Arka kamera için
+      });
+      video.srcObject = stream;
+      output.textContent = "✅ Kamera başarıyla başlatıldı.";
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'NotAllowedError') {
+        output.textContent = "❌ Kamera izni verilmedi. Tarayıcınızdan bu siteye izin verin.";
+      } else if (err.name === 'NotFoundError') {
+        output.textContent = "❌ Cihazda uygun bir kamera bulunamadı.";
+      } else if (err.name === 'NotReadableError') {
+        output.textContent = "❌ Kamera başka bir uygulama tarafından kullanılıyor.";
+      } else if (err.name === 'OverconstrainedError') {
+        output.textContent = "❌ Belirtilen kamera özellikleri desteklenmiyor.";
+      } else {
+        output.textContent = "❌ Kameraya erişilemiyor: " + err.message;
+      }
+    }
+  }
+
+  startCamera();
+</script>
+
+</body>
+</html>
